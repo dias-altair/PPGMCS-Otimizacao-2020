@@ -8,7 +8,6 @@ Created on Sun Nov  8 13:14:14 2020
 import math
 import numpy as np
 import Selection as sel
-import Substitution as sub
 from copy import deepcopy,copy
 import time
 import matplotlib.pyplot as plt
@@ -71,7 +70,7 @@ def generatePop():
         pop.append(readIndiv())
     return pop
 
-def mutate(orig_indiv):
+def neigh(orig_indiv):
     orig_indiv = deepcopy(orig_indiv)
     fit = caixFitness(orig_indiv)
     for i in range(10000):
@@ -92,37 +91,43 @@ def mutate(orig_indiv):
 if __name__ == "__main__":
     xx = []
     yy = []
-    fits = []
     
     for execucao in range(1):
-        m = 99999999
         t = time.time()
-        #indiv = deepcopy(readIndiv())
+        
         pop = generatePop()
         fit_arr = [caixFitness(indiv) for indiv in pop]
         t = time.time()
+        print(fit_arr)
         xx.append(0)
         yy.append(min(fit_arr))
         
-        for k in range(10):
+        for k in range(2):
             
+            n_pop = generatePop()
+            
+            #Cada nucleo do processador irá gerar candidatos
+            #utilizando a função geedIndiv
+            #que retorna um indivíduo gerado de forma gulosa
             p = mp.Pool()
-            candidates = p.map(greedIndiv, pop)
+            candidates = p.map(greedIndiv, n_pop)
             p.close()
             p.join()
             
-            #candidates = [greedIndiv(indiv) for indiv in pop]
-            #indiv_tmp,_ = greedIndiv(indiv)
+            ##Single Thread
+            # candidates = [greedIndiv(indiv) for indiv in pop]
             
+            #Explora as vizinhanças das soluções candidatas
             p = mp.Pool()
-            candidates = p.map(mutate, candidates)
+            candidates = p.map(neigh, candidates)
             p.close()
             p.join()
             
-            #candidates = [mutate(indiv) for indiv in candidates]
+            ##Single Thread
+            # candidates = [neigh(indiv) for indiv in candidates]
             
-            fit_arr = [caixFitness(indiv) for indiv in pop]
-            print(fit_arr)
+            #calculos da função objetivo para selecionar os melhores indivíduos
+            
             fit_arr_candidates = [caixFitness(indiv) for indiv in candidates]
             fit_all = fit_arr + fit_arr_candidates
             fit = sel.getRankArray(fit_all)
@@ -130,24 +135,15 @@ if __name__ == "__main__":
             pop = []
             for foo in range(mp.cpu_count()):
                 pop.append(n_pop[fit.index(foo)])
+            fit_arr = [caixFitness(indiv) for indiv in pop]
             
-            
+            print(fit_arr)
             xx.append(time.time()-t)
             yy.append(min(fit_all))
-            
-            # indiv_local = mutate(indiv_tmp)
-            # if (caixFitness(indiv_local) < caixFitness(indiv)):
-            #     indiv = deepcopy(indiv_local)
-            # y.append(caixFitness(indiv))
-    
-    
-    #plt.plot(list(range(len(yy))),np.mean(yy,axis=0).tolist(),label="Media")
-    plt.plot(xx,yy,label="Minimo")
-    plt.legend(loc="upper right")
-    plt.xlabel('Tempo (s)')
-    plt.ylabel('FO - Unidades de Distancia')
-    plt.title('TSP')
-    plt.grid(True)
-    # print ("probProportinalArr: ",sel.probProportinalArr(fit_arr))
-    # print ("probLRArray: ",sel.probLRArray(fit_arr,2))
-    # print ("rouletteIndex: ",pop[sel.rouletteIndex(sel.probProportinalArr(fit_arr))])
+
+        plt.plot(xx,yy,label="Minimo")
+        plt.legend(loc="upper right")
+        plt.xlabel('Tempo (s)')
+        plt.ylabel('FO - Unidades de Distancia')
+        plt.title('TSP')
+        plt.grid(True)
